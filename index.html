@@ -1,60 +1,60 @@
 <html lang="zh">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Draw</title>
-</head>
-<body>
-
-
-<center>
-  <div id="d" style="background: #7A7A7A;width: 250px;">
-  <h1 id = 'name'></h1>
-  </div>
-  <div>
-  <button id = 'start'  type="button">Start</button>
-  </div>
-  <div>
-  <button id = 'temp' type="button">Stop</button>
-  </div>
-  </center>
-
-<h1 id = 'name_list'></h1>
-</body>
+	<head>
+		  <meta charset="UTF-8">
+		  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+		  <title>Draw</title>
+	</head>
+	<body>
+	
+	
+		<center>
+		  <div id="d" style="background: #7A7A7A;width: 250px;">
+		  <h1 id = 'name'></h1>
+		  </div>
+		  <div>
+		  <button id = 'start'  type="button">Start</button>
+		  </div>
+		  <div>
+		  <button id = 'temp' type="button">Stop</button>
+		  </div>
+		  </center>
+		
+		<h1 id = 'name_list'></h1>
+	</body>
 </html>
 <script type= "text/javascript">
-  window.onload=function(){
-          var names = ["煦悅", "成大館", "成功燒臘","紅樓小館","大醬","韓佶","億品鍋","御鍋燒","元味屋","樂品屋","餓了","雙饗丼","覓食堂","小妞炒飯","加依軒"];
-          var clors = ['#EE0000' , '#CAE1FF' , '#008B8B' , '#CDC9C9' , '#F0F8FF'];
-          var name = document.getElementById('name');
-          var d = document.getElementById('d');
-          var temp = document.getElementById('temp');
-          var startR = -1; //
-          var start = document.getElementById('start');
-
-          var global_name_num = 0;
-
-          function Random(){ //
-			  var nNum = Math.floor(Math.random()*(names.length)); //人名量
-			  var cNum = Math.floor(Math.random()*5);
-
-			  global_name_num = nNum;
-
-			  name.innerHTML = names[nNum];
-			  d.style.color = clors[cNum];
-		   }
-		   
- start.onclick = function(){
- if(startR == -1)
- startR = setInterval(Random,25);
- }
- temp.onclick = function(){
- clearInterval(startR);
- startR = -1;
- var name_1 = document.getElementById('name_list');
-       name_1.innerHTML += "<br>"+names[global_name_num];
-
- }
- }
+	  window.onload=function(){
+	          var names = ["煦悅", "成大館", "成功燒臘","紅樓小館","大醬","韓佶","億品鍋","御鍋燒","元味屋","樂品屋","餓了","雙饗丼","覓食堂","小妞炒飯","加依軒"];
+	          var clors = ['#EE0000' , '#CAE1FF' , '#008B8B' , '#CDC9C9' , '#F0F8FF'];
+	          var name = document.getElementById('name');
+	          var d = document.getElementById('d');
+	          var temp = document.getElementById('temp');
+	          var startR = -1; //
+	          var start = document.getElementById('start');
+	
+	          var global_name_num = 0;
+	
+	          function Random(){ //
+				  var nNum = Math.floor(Math.random()*(names.length)); //人名量
+				  var cNum = Math.floor(Math.random()*5);
+	
+				  global_name_num = nNum;
+	
+				  name.innerHTML = names[nNum];
+				  d.style.color = clors[cNum];
+			   }
+			   
+	 start.onclick = function(){
+	 if(startR == -1)
+	 startR = setInterval(Random,25);
+	 }
+	 temp.onclick = function(){
+	 clearInterval(startR);
+	 startR = -1;
+	 var name_1 = document.getElementById('name_list');
+	       name_1.innerHTML += "<br>"+names[global_name_num];
+	
+	 }
+	 }
 </script>
