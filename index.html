@@ -1,60 +1,605 @@
-<html lang="zh">
-	<head>
-		  <meta charset="UTF-8">
-		  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-		  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-		  <title>Draw</title>
-	</head>
-	<body>
-	
-	
-		<center>
-		  <div id="d" style="background: #7A7A7A;width: 250px;">
-		  <h1 id = 'name'></h1>
-		  </div>
-		  <div>
-		  <button id = 'start'  type="button">Start</button>
-		  </div>
-		  <div>
-		  <button id = 'temp' type="button">Stop</button>
-		  </div>
-		  </center>
-		
-		<h1 id = 'name_list'></h1>
-	</body>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台南騎士吃什麼？ - 成大美食隨機產生器</title>
+    
+    <!-- 引入 React 和 Babel (讓瀏覽器看懂 React) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 引入 Tailwind CSS (美化樣式) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 圖示組件 (因為沒有 npm，我們直接寫 SVG) ---
+        const Icon = ({ path, size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const Icons = {
+            MapPin: (props) => <Icon {...props} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
+            Utensils: (props) => <Icon {...props} path={<><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></>} />,
+            Clock: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+            DollarSign: (props) => <Icon {...props} path={<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>} />,
+            RefreshCw: (props) => <Icon {...props} path={<><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></>} />,
+            Navigation: (props) => <Icon {...props} path={<polygon points="3 11 22 2 13 21 11 13 3 11"/>} />,
+            Search: (props) => <Icon {...props} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
+            Bike: (props) => <Icon {...props} path={<><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></>} />,
+            Footprints: (props) => <Icon {...props} path={<><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 11 3.8 11 8c0 2.85-1.67 5.14-4 5.38L4 16Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 13 7.8 13 12c0 2.85 1.67 5.14 4 5.38L20 20Z"/></>} />,
+            Plus: (props) => <Icon {...props} path={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />,
+            X: (props) => <Icon {...props} path={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />,
+            Check: (props) => <Icon {...props} path={<polyline points="20 6 9 17 4 12"/>} />,
+        };
+
+        // --- 完整資料庫 ---
+        const INITIAL_RESTAURANTS_DATA = [
+            { id: 601, name: "菘芝香滷味", cuisine: "luwei", price: "low", meals: ["lunch", "dinner", "latenight"], location: "育樂街", distance: "near", desc: "成大生必吃，特製醬汁與辣椒非常夠味" },
+            { id: 602, name: "盛田滷味", cuisine: "luwei", price: "low", meals: ["dinner", "latenight"], location: "育樂街", distance: "near", desc: "食材選擇多，環境相對乾淨的滷味店" },
+            { id: 603, name: "丹瓦樓", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner"], location: "勝利路", distance: "near", desc: "有冷氣座位舒服，湯頭順口的精緻滷味" },
+            { id: 604, name: "府城滷味", cuisine: "luwei", price: "low", meals: ["dinner", "latenight"], location: "東寧路", distance: "near", desc: "老字號乾滷味，適合買回宿舍當宵夜" },
+            { id: 1001, name: "福相麻辣干鍋", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner", "latenight"], location: "成大周邊", distance: "near", desc: "香麻過癮的乾鍋，白飯殺手" },
+            { id: 1002, name: "小赤佬干鍋", cuisine: "luwei", price: "mid", meals: ["dinner", "latenight"], location: "育樂街", distance: "near", desc: "育樂街排隊名店，又麻又辣適合重口味" },
+            { id: 1003, name: "辣訣", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner"], location: "東寧路", distance: "near", desc: "一個人也能吃的麻辣鍋，湯頭濃郁" },
+            { id: 1004, name: "元爵味黃燜雞", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "醬汁濃郁下飯，雞肉軟嫩" },
+            { id: 1005, name: "億品鍋", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "平價小火鍋，自助吧吃到飽" },
+            { id: 1101, name: "五鮮級", cuisine: "luwei", price: "mid", meals: ["lunch", "dinner", "latenight"], location: "成大周邊", distance: "near", desc: "大份量肉盤平價火鍋，湯頭選擇多" },
+            { id: 1102, name: "兩餐", cuisine: "korean", price: "mid", meals: ["lunch", "dinner"], location: "火車站前", distance: "near", desc: "韓式年糕火鍋吃到飽，最後一定要炒飯" },
+            { id: 1103, name: "和三辣", cuisine: "luwei", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "特色麻辣乾麵與抄手，愛吃辣必挑戰" },
+            { id: 901, name: "港記燒臘", cuisine: "hongkong", price: "low", meals: ["lunch", "dinner"], location: "東安路", distance: "near", desc: "份量十足的燒臘便當，肉食族最愛" },
+            { id: 101, name: "扒伍貳冰室", cuisine: "hongkong", price: "mid", meals: ["lunch", "dinner"], location: "中西區(開山路)", distance: "far", desc: "復古風裝潢，必點黯然銷魂飯與菠蘿油" },
+            { id: 102, name: "日街冰室", cuisine: "hongkong", price: "mid", meals: ["lunch", "dinner"], location: "北區(林森路)", distance: "near", desc: "離成大很近，西多士與滑蛋飯評價很高" },
+            { id: 103, name: "糖勒？", cuisine: "hongkong", price: "mid", meals: ["dinner", "latenight"], location: "中西區", distance: "far", desc: "巷弄裡的深夜甜點與港式飲品，氣氛極佳" },
+            { id: 104, name: "鑫華茶餐廳", cuisine: "hongkong", price: "mid", meals: ["lunch", "dinner"], location: "中西區(河中街)", distance: "far", desc: "老字號港式餐廳，口味非常道地" },
+            { id: 105, name: "小香港茶餐廳", cuisine: "hongkong", price: "mid", meals: ["lunch", "dinner"], location: "中西區(康樂街)", distance: "far", desc: "平價且份量足，還有可愛的店貓" },
+            { id: 902, name: "虎東", cuisine: "korean", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "near", desc: "韓式烤肉與料理，聚餐好選擇" },
+            { id: 201, name: "韓朝", cuisine: "korean", price: "mid", meals: ["lunch", "dinner"], location: "東區(東寧路)", distance: "near", desc: "成大學生聚餐首選，小菜吃到飽 CP 值高" },
+            { id: 202, name: "豬對有燒烤吃到飽", cuisine: "korean", price: "mid", meals: ["lunch", "dinner"], location: "中西區(永華路)", distance: "far", desc: "平價韓式烤肉吃到飽，肉食主義者必去" },
+            { id: 203, name: "歐巴韓式炸雞", cuisine: "korean", price: "low", meals: ["dinner", "latenight"], location: "南區/中西區", distance: "far", desc: "道地洋釀與甜辣口味，適合外帶回家配劇" },
+            { id: 204, name: "大韓名鍋", cuisine: "korean", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "near", desc: "湯頭濃郁的泡菜鍋與石鍋拌飯" },
+            { id: 925, name: "煦悅便當", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "配菜豐富且不油膩，學生便當好選擇" },
+            { id: 1006, name: "禾品鐵板燒", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "現炒鐵板燒，白飯湯品吃到飽" },
+            { id: 1104, name: "日鏟鐵板燒", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "育樂街平價鐵板燒，白飯飲料無限" },
+            { id: 1105, name: "倆人鍋鏟", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "學生熱愛的鐵板料理，口味偏重下飯" },
+            { id: 1106, name: "便當翔", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "主菜選擇多，配菜家常的熱門便當店" },
+            { id: 1107, name: "Walking Su", cuisine: "taiwanese", price: "low", meals: ["dinner", "latenight"], location: "北區/東區", distance: "far", desc: "超人氣藥膳麻油雞，湯頭甘甜，冬天必排" },
+            { id: 1108, name: "頓號", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "北區", distance: "far", desc: "老宅改建的文青店，水餃跟麵食很精緻" },
+            { id: 1007, name: "這鍋飯有點強", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "特色鍋燒與丼飯，口味獨特" },
+            { id: 1008, name: "小裕樂", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "在地學生的口袋名單" },
+            { id: 903, name: "小妞炒飯", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "育樂街高人氣，炒飯口味選擇多" },
+            { id: 904, name: "鍾記水餃之家", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "勝利路", distance: "near", desc: "手工水餃，皮Q餡多" },
+            { id: 905, name: "金雞王鹹酥雞", cuisine: "taiwanese", price: "low", meals: ["dinner", "latenight"], location: "育樂街", distance: "near", desc: "宵夜邪惡首選，炸物種類豐富" },
+            { id: 906, name: "康舍平價料理", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "學生最愛的平價便當簡餐" },
+            { id: 907, name: "餓了", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner", "latenight"], location: "成大周邊", distance: "near", desc: "隨時肚子餓的好朋友" },
+            { id: 908, name: "食神廣東粥", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner", "latenight"], location: "育樂街", distance: "near", desc: "暖胃首選，粥品選擇多" },
+            { id: 909, name: "杉上鍋燒", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "湯頭鮮甜的鍋燒意麵" },
+            { id: 910, name: "男哥煮麵", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "特色麵食，乾麵控必試" },
+            { id: 911, name: "第二碗鍋燒意麵", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "吃完一碗還想吃第二碗的鍋燒" },
+            { id: 912, name: "萬客樓", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "東寧路", distance: "near", desc: "鮮蝦水餃、牛肉捲餅與豆漿無限暢飲" },
+            { id: 913, name: "萬紅刀削麵", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "開元路", distance: "near", desc: "口感Q彈的刀削麵與牛肉麵" },
+            { id: 914, name: "勁請享用", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "特色鐵板便當，份量十足" },
+            { id: 915, name: "微宵夜", cuisine: "taiwanese", price: "low", meals: ["dinner", "latenight"], location: "育樂街", distance: "near", desc: "宵夜場的小點心與炸物" },
+            { id: 916, name: "你我家", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "勝利路", distance: "near", desc: "經典老店，乾麵與滷味是絕配" },
+            { id: 917, name: "夜牲人進", cuisine: "taiwanese", price: "mid", meals: ["dinner", "latenight"], location: "成大周邊", distance: "near", desc: "深夜食堂，適合夜貓子" },
+            { id: 918, name: "好春麵飲", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "長榮路", distance: "near", desc: "文青風麵店，環境舒適" },
+            { id: 919, name: "葉明致麵舖", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "青年路", distance: "far", desc: "裝潢很有質感的意麵店" },
+            { id: 920, name: "友豐小館", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "各式炒飯炒麵，快速解決一餐" },
+            { id: 921, name: "唐家泡菜館", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "裕農路", distance: "near", desc: "必點泡菜炒飯與海鮮麵" },
+            { id: 922, name: "太豐裕炒", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "鑊氣十足的熱炒簡餐" },
+            { id: 923, name: "友豐鐵板燒", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "現炒鐵板燒，白飯殺手" },
+            { id: 1, name: "小茂屋", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner", "latenight"], location: "長榮路", distance: "near", desc: "成大人的回憶，鍋燒意麵配紅茶" },
+            { id: 3, name: "勝利早點", cuisine: "taiwanese", price: "low", meals: ["dinner", "latenight"], location: "勝利路", distance: "near", desc: "豬肉蛋餅與豆漿，宵夜首選" },
+            { id: 4, name: "紅樓小館", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "大份量炒飯，學生的最愛" },
+            { id: 305, name: "元味屋", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "厚切豬排定食，配菜豐富" },
+            { id: 306, name: "123炒飯", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "口味選擇超多，加飯不用錢" },
+            { id: 304, name: "丹丹漢堡", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "成功路", distance: "far", desc: "南部特產，麵線糊配炸雞的絕妙組合" },
+            { id: 301, name: "文章牛肉湯", cuisine: "taiwanese", price: "mid", meals: ["lunch", "dinner", "latenight"], location: "安平區", distance: "far", desc: "台南必吃！騎車衝一波安平喝新鮮牛肉湯" },
+            { id: 302, name: "集品蝦仁飯", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "中西區(海安路)", distance: "far", desc: "火燒蝦仁飯配上鴨蛋湯，道地台南味" },
+            { id: 303, name: "阿江炒鱔魚", cuisine: "taiwanese", price: "mid", meals: ["dinner", "latenight"], location: "中西區", distance: "far", desc: "鑊氣十足的乾炒鱔魚意麵，老饕最愛" },
+            { id: 5, name: "唐揚雞咖哩", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "酥脆多汁的炸雞配上濃郁咖哩" },
+            { id: 1009, name: "黑盤", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "平價好吃的歐姆蛋咖哩與丼飯" },
+            { id: 1010, name: "濱家咖哩屋", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "濃郁日式咖哩，炸豬排很推薦" },
+            { id: 1011, name: "角鑄", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "日式鐵板料理與丼飯，肉質不錯" },
+            { id: 1109, name: "歐姆洋食蛋包飯", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "滑嫩蛋包飯配上特色醬汁" },
+            { id: 1110, name: "福勝亭", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "連鎖日式豬排，白飯味噌湯吃到飽" },
+            { id: 1111, name: "亮家", cuisine: "japanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "育樂街平價拉麵與蓋飯" },
+            { id: 1112, name: "櫻之庭", cuisine: "japanese", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "學生最愛的高CP值日式簡餐" },
+            { id: 1113, name: "藏壽司", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "南紡/Focus", distance: "far", desc: "吃壽司還能抽扭蛋，聚餐有趣選擇" },
+            { id: 1114, name: "壽司郎", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "南紡/安平", distance: "far", desc: "來自大阪的迴轉壽司，食材新鮮" },
+            { id: 1115, name: "三船的鰻丼", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "far", desc: "價格親民的鰻魚飯，口味不錯" },
+            { id: 1116, name: "麵家宇味", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "中西區", distance: "far", desc: "濃郁系豚骨拉麵，叉燒軟嫩" },
+            { id: 1117, name: "吾旬拉麵", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "near", desc: "清爽系雞白湯拉麵" },
+            { id: 1118, name: "洄游丼飯所", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "食材豐富的生魚片丼飯" },
+            { id: 6, name: "野崎家", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "大學路", distance: "near", desc: "道地橫濱家系拉麵，湯頭濃郁" },
+            { id: 20, name: "井選日式定食", cuisine: "japanese", price: "mid", meals: ["lunch", "dinner"], location: "大學路18巷", distance: "near", desc: "精緻日式家庭料理，環境舒適" },
+            { id: 401, name: "鰻丼作", cuisine: "japanese", price: "high", meals: ["lunch", "dinner"], location: "中西區", distance: "far", desc: "隱身巷弄的炭烤鰻魚飯，值得專程騎車去" },
+            { id: 1119, name: "孫東寶", cuisine: "western", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "台式牛排教父，玉米濃湯好喝" },
+            { id: 1120, name: "逐日", cuisine: "western", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "質感不錯的平價牛排館" },
+            { id: 1012, name: "皮嚓先生", cuisine: "italian", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "現烤手工披薩，口味選擇多" },
+            { id: 1013, name: "蒙頓義法小館", cuisine: "italian", price: "high", meals: ["lunch", "dinner"], location: "東區", distance: "far", desc: "氣氛佳的義法料理，適合約會慶生" },
+            { id: 924, name: "樂熊Pasta", cuisine: "italian", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "平價義大利麵，學生聚餐好去處" },
+            { id: 8, name: "轉角餐廳", cuisine: "western", price: "high", meals: ["lunch", "dinner"], location: "大學路22巷", distance: "near", desc: "經典排餐與龍蝦，約會首選" },
+            { id: 9, name: "庫肯花園", cuisine: "italian", price: "mid", meals: ["lunch", "dinner"], location: "大學路22巷", distance: "near", desc: "高CP值義大利麵與燉飯" },
+            { id: 21, name: "X Dining", cuisine: "italian", price: "high", meals: ["lunch", "dinner"], location: "大學路22巷", distance: "near", desc: "約會氣氛佳，精緻義法料理" },
+            { id: 501, name: "吃麵吧 Jai Mi Ba", cuisine: "western", price: "mid", meals: ["lunch", "dinner"], location: "中西區", distance: "far", desc: "結合台式元素的創意西式麵食，非常有特色" },
+            { id: 503, name: "Double Cheese", cuisine: "italian", price: "mid", meals: ["lunch", "dinner"], location: "長榮路", distance: "near", desc: "披薩炸雞吃到飽，系隊聚餐首選" },
+            { id: 1121, name: "有泰拜三", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "near", desc: "道地泰式街頭小吃，打拋豬很推" },
+            { id: 1122, name: "泰典", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "東區", distance: "near", desc: "環境舒適的泰式簡餐店" },
+            { id: 1123, name: "婆婆河粉", cuisine: "thai", price: "low", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "育樂街高CP值越南料理，份量大" },
+            { id: 1014, name: "小泰飽", cuisine: "thai", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "一人份的泰式定食，平價美味" },
+            { id: 1015, name: "鐵瓦泰式料理", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "口味道地的泰式料理，月亮蝦餅必點" },
+            { id: 1016, name: "Bitch Fry Fry", cuisine: "thai", price: "mid", meals: ["dinner", "latenight"], location: "長榮路/東區", distance: "near", desc: "必點打拋豬飯與甜甜圈，宵夜場人氣店" },
+            { id: 926, name: "砂舟海南雞飯", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "東寧路", distance: "near", desc: "去骨軟嫩的海南雞飯，沾醬很厲害" },
+            { id: 927, name: "明君越南河粉", cuisine: "thai", price: "low", meals: ["lunch", "dinner"], location: "成大周邊", distance: "near", desc: "平價道地的越南小吃" },
+            { id: 11, name: "珍妮花與南洋杉", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "勝利路", distance: "near", desc: "平價好吃的泰式綠咖哩與打拋豬" },
+            { id: 13, name: "鴻公公越南河粉", cuisine: "thai", price: "mid", meals: ["lunch", "dinner"], location: "南區", distance: "far", desc: "騎車約15分，酸湯頭一絕，生意極好" },
+            { id: 928, name: "良辰吉時早餐", cuisine: "brunch", price: "low", meals: ["lunch", "brunch"], location: "成大周邊", distance: "near", desc: "開啟美好一天的人氣早餐店" },
+            { id: 929, name: "晨間廚房", cuisine: "brunch", price: "low", meals: ["lunch", "brunch"], location: "成大周邊", distance: "near", desc: "連鎖早餐，口味穩定選擇多" },
+            { id: 930, name: "宜華蛋餅", cuisine: "brunch", price: "low", meals: ["lunch", "brunch"], location: "成大周邊", distance: "near", desc: "手工粉漿蛋餅，口感軟Q" },
+            { id: 931, name: "早安山丘", cuisine: "brunch", price: "low", meals: ["lunch", "brunch"], location: "成大周邊", distance: "near", desc: "早午餐的好選擇，環境舒適" },
+            { id: 932, name: "小邁時光", cuisine: "brunch", price: "mid", meals: ["lunch", "brunch"], location: "成大周邊", distance: "near", desc: "質感早午餐，適合悠閒用餐" },
+            { id: 933, name: "咕嚕叫土司", cuisine: "brunch", price: "low", meals: ["dinner", "latenight"], location: "成大周邊", distance: "near", desc: "宵夜場的熱壓吐司與蛋餅" },
+            { id: 15, name: "A-One 健康餐盒", cuisine: "healthy", price: "mid", meals: ["lunch", "dinner"], location: "育樂街", distance: "near", desc: "水煮雞胸肉與紫米飯" },
+            { id: 24, name: "波哥茶飲", cuisine: "brunch", price: "low", meals: ["lunch", "dinner", "latenight"], location: "勝利路", distance: "near", desc: "綜合新味與炒泡麵，成大人的客廳" },
+            { id: 801, name: "懷舊小棧", cuisine: "taiwanese", price: "low", meals: ["lunch", "dinner"], location: "五妃街", distance: "far", desc: "成大生必吃的杏仁豆腐冰" },
+        ];
+
+        const FilterButton = ({ active, onClick, label, icon: IconComponent }) => (
+            <button
+                onClick={onClick}
+                className={`flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                active
+                    ? 'bg-orange-500 text-white border-orange-500 shadow-md transform scale-105'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-orange-50 hover:border-orange-200'
+                }`}
+            >
+                {IconComponent && <IconComponent size={14} />}
+                {label}
+            </button>
+        );
+
+        function NCKUFoodRandomizer() {
+            const [restaurants, setRestaurants] = useState(INITIAL_RESTAURANTS_DATA);
+            const [filters, setFilters] = useState({
+                cuisine: 'all',
+                price: 'all',
+                meal: 'all',
+                distance: 'all', 
+            });
+            const [result, setResult] = useState(null);
+            const [isAnimating, setIsAnimating] = useState(false);
+            const [displayRestaurant, setDisplayRestaurant] = useState(null);
+            const [errorMsg, setErrorMsg] = useState('');
+
+            // 新增店家相關 State
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [newRestaurant, setNewRestaurant] = useState({
+                name: '',
+                cuisine: 'taiwanese',
+                price: 'low',
+                distance: 'near',
+            });
+            const [addSuccessMsg, setAddSuccessMsg] = useState('');
+
+            // 取得當前時段 (預設選取)
+            useEffect(() => {
+                const hour = new Date().getHours();
+                let currentMeal = 'lunch';
+                if (hour >= 14 && hour < 20) currentMeal = 'dinner';
+                else if (hour >= 20 || hour < 5) currentMeal = 'latenight';
+                if (hour >= 5 && hour < 11) currentMeal = 'brunch';
+                
+                setFilters(prev => ({ ...prev, meal: currentMeal }));
+            }, []);
+
+            const getFilteredRestaurants = () => {
+                return restaurants.filter(r => {
+                const matchCuisine = filters.cuisine === 'all' || r.cuisine === filters.cuisine;
+                const matchPrice = filters.price === 'all' || r.price === filters.price;
+                const matchDistance = filters.distance === 'all' || r.distance === filters.distance;
+                const matchMeal = filters.meal === 'all' || r.meals.includes(filters.meal);
+                
+                return matchCuisine && matchPrice && matchMeal && matchDistance;
+                });
+            };
+
+            const handleRandomize = () => {
+                const candidates = getFilteredRestaurants();
+                
+                if (candidates.length === 0) {
+                setErrorMsg('找不到符合條件的餐廳，請試著放寬條件，或是「新增自訂店家」！');
+                setResult(null);
+                setDisplayRestaurant(null);
+                return;
+                }
+
+                setErrorMsg('');
+                setIsAnimating(true);
+                setResult(null);
+
+                // 動畫效果
+                let count = 0;
+                const maxCount = 20; 
+                const interval = setInterval(() => {
+                const randomTemp = candidates[Math.floor(Math.random() * candidates.length)];
+                setDisplayRestaurant(randomTemp);
+                count++;
+
+                if (count > maxCount) {
+                    clearInterval(interval);
+                    const finalChoice = candidates[Math.floor(Math.random() * candidates.length)];
+                    setResult(finalChoice);
+                    setDisplayRestaurant(finalChoice);
+                    setIsAnimating(false);
+                }
+                }, 100);
+            };
+
+            const handleAddRestaurant = () => {
+                if (!newRestaurant.name.trim()) {
+                alert("請輸入餐廳名稱！");
+                return;
+                }
+
+                const newItem = {
+                id: Date.now(),
+                name: newRestaurant.name,
+                cuisine: newRestaurant.cuisine,
+                price: newRestaurant.price,
+                distance: newRestaurant.distance,
+                meals: ["lunch", "dinner"],
+                location: "自訂店家", 
+                desc: "這是你推薦的隱藏美食！"
+                };
+
+                setRestaurants([...restaurants, newItem]);
+                setNewRestaurant({ name: '', cuisine: 'taiwanese', price: 'low', distance: 'near' });
+                setShowAddForm(false);
+                setAddSuccessMsg(`成功新增「${newItem.name}」！`);
+                setTimeout(() => setAddSuccessMsg(''), 3000);
+            };
+
+            const handleGoogleSearch = () => {
+                let query = "台南美食"; 
+                if (filters.distance === 'near') query = "成大附近美食";
+
+                if (filters.cuisine !== 'all') {
+                const cuisineMap = {
+                    'taiwanese': '小吃',
+                    'luwei': '滷味',
+                    'japanese': '日式料理',
+                    'italian': '義式料理',
+                    'western': '西式餐廳',
+                    'thai': '泰式料理',
+                    'hongkong': '港式茶餐廳',
+                    'korean': '韓式料理',
+                    'brunch': '早午餐',
+                    'healthy': '健康餐盒'
+                };
+                query += ` ${cuisineMap[filters.cuisine]}`;
+                }
+
+                if (filters.price === 'low') query += " 平價";
+                if (filters.price === 'high') query += " 高級";
+                
+                if (filters.meal === 'latenight') query += " 宵夜";
+                else if (filters.meal === 'brunch') query += " 早午餐";
+
+                window.open(`https://www.google.com/maps/search/${encodeURIComponent(query)}`, '_blank');
+            };
+
+            const getPriceLabel = (price) => {
+                switch(price) {
+                case 'low': return '銅板價 ($)';
+                case 'mid': return '中價位 ($$)';
+                case 'high': return '聚餐 ($$$)';
+                default: return '';
+                }
+            };
+
+            const getCuisineLabel = (cuisine) => {
+                const map = {
+                'taiwanese': '台式/小吃',
+                'luwei': '滷味/火鍋',
+                'japanese': '日式',
+                'italian': '義式',
+                'western': '西式/排餐',
+                'thai': '泰式/南洋',
+                'hongkong': '港式',
+                'korean': '韓式',
+                'brunch': '早午餐',
+                'healthy': '健康餐'
+                };
+                return map[cuisine] || cuisine;
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col items-center py-8 px-4 font-sans text-slate-800">
+                
+                {/* 標題區 */}
+                <header className="mb-8 text-center">
+                    <div className="inline-flex items-center justify-center p-3 bg-orange-100 rounded-full mb-3">
+                    <Icons.Bike className="text-orange-600" size={32} />
+                    </div>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">台南騎士吃什麼？</h1>
+                    <p className="text-slate-500">成大出發 • 隨機美食指南</p>
+                </header>
+
+                <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 mb-6">
+                    
+                    {/* 篩選區 */}
+                    <div className="p-6 space-y-6">
+                    
+                    {/* 距離選擇 */}
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <Icons.MapPin size={16} /> 距離範圍
+                        </div>
+                        <div className="flex gap-2">
+                        <FilterButton active={filters.distance === 'all'} onClick={() => setFilters({...filters, distance: 'all'})} label="不限" />
+                        <FilterButton active={filters.distance === 'near'} onClick={() => setFilters({...filters, distance: 'near'})} label="走路 (校區)" icon={Icons.Footprints} />
+                        <FilterButton active={filters.distance === 'far'} onClick={() => setFilters({...filters, distance: 'far'})} label="騎車 (市區)" icon={Icons.Bike} />
+                        </div>
+                    </div>
+
+                    {/* 時段選擇 */}
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <Icons.Clock size={16} /> 用餐時段
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                        <FilterButton active={filters.meal === 'all'} onClick={() => setFilters({...filters, meal: 'all'})} label="不限" />
+                        <FilterButton active={filters.meal === 'brunch'} onClick={() => setFilters({...filters, meal: 'brunch'})} label="早餐" />
+                        <FilterButton active={filters.meal === 'lunch'} onClick={() => setFilters({...filters, meal: 'lunch'})} label="午餐" />
+                        <FilterButton active={filters.meal === 'dinner'} onClick={() => setFilters({...filters, meal: 'dinner'})} label="晚餐" />
+                        <FilterButton active={filters.meal === 'latenight'} onClick={() => setFilters({...filters, meal: 'latenight'})} label="宵夜" />
+                        </div>
+                    </div>
+
+                    {/* 價格選擇 */}
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <Icons.DollarSign size={16} /> 預算範圍
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                        <FilterButton active={filters.price === 'all'} onClick={() => setFilters({...filters, price: 'all'})} label="不限" />
+                        <FilterButton active={filters.price === 'low'} onClick={() => setFilters({...filters, price: 'low'})} label="銅板價" />
+                        <FilterButton active={filters.price === 'mid'} onClick={() => setFilters({...filters, price: 'mid'})} label="中價位" />
+                        <FilterButton active={filters.price === 'high'} onClick={() => setFilters({...filters, price: 'high'})} label="聚餐" />
+                        </div>
+                    </div>
+
+                    {/* 種類選擇 */}
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <Icons.Utensils size={16} /> 料理風格
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                        <div className="col-span-1">
+                            <FilterButton active={filters.cuisine === 'all'} onClick={() => setFilters({...filters, cuisine: 'all'})} label="全部" />
+                        </div>
+                        <FilterButton active={filters.cuisine === 'luwei'} onClick={() => setFilters({...filters, cuisine: 'luwei'})} label="滷/鍋" />
+                        <FilterButton active={filters.cuisine === 'taiwanese'} onClick={() => setFilters({...filters, cuisine: 'taiwanese'})} label="台式" />
+                        <FilterButton active={filters.cuisine === 'hongkong'} onClick={() => setFilters({...filters, cuisine: 'hongkong'})} label="港式" />
+                        
+                        <FilterButton active={filters.cuisine === 'korean'} onClick={() => setFilters({...filters, cuisine: 'korean'})} label="韓式" />
+                        <FilterButton active={filters.cuisine === 'japanese'} onClick={() => setFilters({...filters, cuisine: 'japanese'})} label="日式" />
+                        <FilterButton active={filters.cuisine === 'thai'} onClick={() => setFilters({...filters, cuisine: 'thai'})} label="泰式" />
+                        <FilterButton active={filters.cuisine === 'italian'} onClick={() => setFilters({...filters, cuisine: 'italian'})} label="義式" />
+                        
+                        <FilterButton active={filters.cuisine === 'western'} onClick={() => setFilters({...filters, cuisine: 'western'})} label="西式" />
+                        <FilterButton active={filters.cuisine === 'healthy'} onClick={() => setFilters({...filters, cuisine: 'healthy'})} label="健康" />
+                        <div className="col-span-2">
+                            <FilterButton active={filters.cuisine === 'brunch'} onClick={() => setFilters({...filters, cuisine: 'brunch'})} label="早餐/甜點" />
+                        </div>
+                        </div>
+                    </div>
+
+                    </div>
+
+                    {/* 按鈕區 */}
+                    <div className="px-6 pb-6 space-y-3">
+                    <button
+                        onClick={handleRandomize}
+                        disabled={isAnimating}
+                        className={`w-full py-4 rounded-xl text-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 ${
+                        isAnimating ? 'bg-orange-300 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
+                        }`}
+                    >
+                        <Icons.RefreshCw size={24} className={isAnimating ? 'animate-spin' : ''} />
+                        {isAnimating ? '幫你選擇中...' : '隨機抽一間！'}
+                    </button>
+                    
+                    <button
+                        onClick={handleGoogleSearch}
+                        className="w-full py-3 rounded-xl text-slate-600 bg-white border-2 border-slate-200 font-semibold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                    >
+                        <Icons.Search size={18} />
+                        用 Google 地圖擴大搜尋
+                    </button>
+
+                    {errorMsg && (
+                        <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center animate-pulse">
+                        {errorMsg}
+                        </div>
+                    )}
+
+                    {addSuccessMsg && (
+                        <div className="mt-4 p-3 bg-green-50 text-green-600 text-sm rounded-lg text-center flex items-center justify-center gap-2">
+                        <Icons.Check size={16} /> {addSuccessMsg}
+                        </div>
+                    )}
+                    </div>
+                </div>
+
+                {/* 新增店家區塊 */}
+                <div className="w-full max-w-md mb-6">
+                    <button 
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="flex items-center justify-center gap-2 w-full text-slate-500 hover:text-orange-500 transition-colors py-2 text-sm font-medium"
+                    >
+                    {showAddForm ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
+                    {showAddForm ? '取消新增' : '沒看到想吃的？新增自訂店家'}
+                    </button>
+
+                    {showAddForm && (
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-orange-100 mt-2 fade-in">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <Icons.Utensils size={18} className="text-orange-500" /> 新增你的口袋名單
+                        </h3>
+                        <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">店名</label>
+                            <input 
+                            type="text" 
+                            value={newRestaurant.name}
+                            onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            placeholder="例如：成大無名麵店"
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">類型</label>
+                            <select 
+                                value={newRestaurant.cuisine}
+                                onChange={(e) => setNewRestaurant({...newRestaurant, cuisine: e.target.value})}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            >
+                                <option value="taiwanese">台式/小吃</option>
+                                <option value="luwei">滷味/火鍋</option>
+                                <option value="japanese">日式</option>
+                                <option value="korean">韓式</option>
+                                <option value="western">西式/排餐</option>
+                                <option value="thai">泰式/南洋</option>
+                                <option value="italian">義式</option>
+                                <option value="hongkong">港式</option>
+                                <option value="brunch">早午餐/甜點</option>
+                                <option value="healthy">健康餐</option>
+                            </select>
+                            </div>
+                            <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">價位</label>
+                            <select 
+                                value={newRestaurant.price}
+                                onChange={(e) => setNewRestaurant({...newRestaurant, price: e.target.value})}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            >
+                                <option value="low">銅板價</option>
+                                <option value="mid">中價位</option>
+                                <option value="high">聚餐</option>
+                            </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">距離</label>
+                            <div className="flex gap-2">
+                            <button 
+                                onClick={() => setNewRestaurant({...newRestaurant, distance: 'near'})}
+                                className={`flex-1 py-2 text-sm rounded-lg border ${newRestaurant.distance === 'near' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600'}`}
+                            >
+                                走路 (校區旁)
+                            </button>
+                            <button 
+                                onClick={() => setNewRestaurant({...newRestaurant, distance: 'far'})}
+                                className={`flex-1 py-2 text-sm rounded-lg border ${newRestaurant.distance === 'far' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600'}`}
+                            >
+                                騎車 (市區)
+                            </button>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={handleAddRestaurant}
+                            className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-colors mt-2"
+                        >
+                            加入名單
+                        </button>
+                        </div>
+                    </div>
+                    )}
+                </div>
+
+                {/* 結果顯示區 */}
+                {(displayRestaurant || result) && !errorMsg && (
+                    <div className={`w-full max-w-md transition-all duration-500 ${result ? 'opacity-100 translate-y-0' : 'opacity-80 translate-y-2'}`}>
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border-2 border-orange-100 relative">
+                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-orange-50 to-orange-100 z-0"></div>
+                        
+                        <div className="relative z-10 p-6 text-center">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md mb-4 text-3xl">
+                            {result ? (filters.distance === 'far' ? '🛵' : '🚶') : '🤔'}
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-slate-800 mb-1">{displayRestaurant.name}</h2>
+                        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mb-4">
+                            <span className="flex items-center gap-1"><Icons.MapPin size={14}/> {displayRestaurant.location}</span>
+                            <span>•</span>
+                            <span>{getPriceLabel(displayRestaurant.price)}</span>
+                            {displayRestaurant.distance === 'far' && <span className="text-xs bg-slate-100 px-1 rounded">需騎車</span>}
+                        </div>
+
+                        <div className="flex justify-center gap-2 mb-6">
+                            <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
+                            {getCuisineLabel(displayRestaurant.cuisine)}
+                            </span>
+                            {displayRestaurant.meals.includes('latenight') && (
+                                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">
+                                宵夜
+                                </span>
+                            )}
+                        </div>
+
+                        <p className="text-slate-600 mb-6 italic bg-slate-50 p-3 rounded-lg">
+                            "{displayRestaurant.desc}"
+                        </p>
+
+                        {result && !isAnimating && (
+                            <div className="space-y-3">
+                            <a 
+                                href={`https://www.google.com/maps/search/${encodeURIComponent(displayRestaurant.name + ' 台南')}`} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+                            >
+                                <Icons.Navigation size={18} />
+                                {filters.distance === 'far' ? '騎車出發 (Google Maps)' : '走路去吃 (Google Maps)'}
+                            </a>
+                            </div>
+                        )}
+                        </div>
+                    </div>
+                    </div>
+                )}
+
+                <footer className="mt-12 text-slate-400 text-xs text-center">
+                    NCKU Food Randomizer (Expanded Edition) © 2025 <br/>
+                    資料僅供參考，實際營業時間請以店家為主
+                </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<NCKUFoodRandomizer />);
+    </script>
+</body>
 </html>
-<script type= "text/javascript">
-	  window.onload=function(){
-	          var names = ["煦悅", "成大館", "成功燒臘","紅樓小館","大醬","韓佶","億品鍋","御鍋燒","元味屋","樂品屋","餓了","雙饗丼","覓食堂","小妞炒飯","加依軒"];
-	          var clors = ['#EE0000' , '#CAE1FF' , '#008B8B' , '#CDC9C9' , '#F0F8FF'];
-	          var name = document.getElementById('name');
-	          var d = document.getElementById('d');
-	          var temp = document.getElementById('temp');
-	          var startR = -1; //
-	          var start = document.getElementById('start');
-	
-	          var global_name_num = 0;
-	
-	          function Random(){ //
-				  var nNum = Math.floor(Math.random()*(names.length)); //人名量
-				  var cNum = Math.floor(Math.random()*5);
-	
-				  global_name_num = nNum;
-	
-				  name.innerHTML = names[nNum];
-				  d.style.color = clors[cNum];
-			   }
-			   
-	 start.onclick = function(){
-	 if(startR == -1)
-	 startR = setInterval(Random,25);
-	 }
-	 temp.onclick = function(){
-	 clearInterval(startR);
-	 startR = -1;
-	 var name_1 = document.getElementById('name_list');
-	       name_1.innerHTML += "<br>"+names[global_name_num];
-	
-	 }
-	 }
-</script>
